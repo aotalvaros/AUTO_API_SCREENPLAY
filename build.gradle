@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'net.serenity-bdd.serenity-gradle-plugin' version '5.3.7'
+}
+
+defaultTasks 'clean', 'test', 'aggregate'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+ext {
+    serenityVersion = '4.2.12'
+}
+
+dependencies {
+    implementation "net.serenity-bdd:serenity-core:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-screenplay:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-screenplay-rest:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-rest-assured:${serenityVersion}"
+    testImplementation "net.serenity-bdd:serenity-cucumber:${serenityVersion}"
+    testImplementation "net.serenity-bdd:serenity-ensure:${serenityVersion}"
+    testImplementation "io.cucumber:cucumber-java:7.20.1"
+    testImplementation "io.cucumber:cucumber-junit-platform-engine:7.20.1"
+    testImplementation "org.junit.platform:junit-platform-launcher:1.11.4"
+    testImplementation "org.junit.platform:junit-platform-suite:1.11.4"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.11.4"
+    testImplementation "org.assertj:assertj-core:3.27.3"
+    implementation "ch.qos.logback:logback-classic:1.5.13"
+}
+
+test {
+    useJUnitPlatform()
+    include '**/*Runner.class'
+    systemProperty "cucumber.filter.tags", System.getProperty("cucumber.filter.tags", "")
+}
+
+serenity {
+    reports = ["single-page-html"]
+}
+
+gradle.startParameter.continueOnFailure = true
+test.finalizedBy(aggregate)
