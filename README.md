@@ -13,7 +13,9 @@ Este proyecto automatiza pruebas sobre la API de **CyberGuard System**:
 
 ## Descripción
 
-Este proyecto valida el ciclo de vida completo (CRUD) de amenazas a través de la API REST de CyberGuard System, cubriendo los **4 verbos HTTP** en un único escenario secuencial:
+Este proyecto valida **3 módulos** de la API REST de CyberGuard System mediante escenarios positivos y negativos:
+
+### 1. Gestión de Amenazas (CRUD completo)
 
 | # | Verbo HTTP | Endpoint | Acción |
 |---|------------|----------|--------|
@@ -21,6 +23,24 @@ Este proyecto valida el ciclo de vida completo (CRUD) de amenazas a través de l
 | 2 | **POST** | `/api/threats` | Creación de amenaza (x2) |
 | 3 | **GET** | `/api/threats` | Consulta del listado de amenazas (x2) |
 | 4 | **DELETE** | `/api/threats/:id` | Eliminación de amenaza (x2) |
+
+### 2. Gestión de Incidentes (HU-001)
+
+| # | Verbo HTTP | Endpoint | Acción |
+|---|------------|----------|--------|
+| 1 | **POST** | `/api/incidents` | Creación de incidente a partir de amenaza crítica |
+| 2 | **GET** | `/api/incidents` | Consulta del listado de incidentes |
+| — | — | — | Escenarios negativos: sin token (401), amenaza inexistente (404), severidad insuficiente (422) |
+
+### 3. Gestión de Usuarios (HU-008)
+
+| # | Verbo HTTP | Endpoint | Acción |
+|---|------------|----------|--------|
+| 1 | **POST** | `/api/users` | Creación de usuario (analista SOC) |
+| 2 | **GET** | `/api/users` | Listado de usuarios |
+| 3 | **PUT** | `/api/users/:id` | Actualización de rol |
+| 4 | **PATCH** | `/api/users/:id/toggle-status` | Activar / desactivar usuario |
+| — | — | — | Escenarios negativos: email duplicado (409), sin token (401), rol insuficiente (403), auto-desactivación (400) |
 
 ---
 
@@ -36,37 +56,55 @@ AUTO_API_SCREENPLAY/
     └── test/
         ├── java/com/cyberguard/automation/
         │   ├── hooks/
-        │   │   └── ApiHooks.java                          ← Cast con CallAnApi
+        │   │   └── ApiHooks.java                              ← Cast con CallAnApi
         │   ├── questions/
-        │   │   ├── ResponseField.java                     ← Extrae campo del JSON response
-        │   │   ├── ResponseStatusCode.java                ← Obtiene código HTTP
-        │   │   └── ThreatListContains.java                ← ¿La amenaza está en el listado?
+        │   │   ├── ResponseField.java                         ← Extrae campo del JSON response
+        │   │   ├── ResponseStatusCode.java                    ← Obtiene código HTTP
+        │   │   ├── ThreatListContains.java                    ← ¿La amenaza está en el listado?
+        │   │   ├── ThreatIdByDescription.java                 ← Busca ID de amenaza por descripción
+        │   │   ├── IncidentInList.java                        ← ¿El incidente aparece en el listado?
+        │   │   ├── UserInList.java                            ← ¿El usuario aparece en el listado?
+        │   │   └── UserFieldValue.java                        ← Extrae campo de un usuario específico
         │   ├── runners/
-        │   │   └── GestionAmenazasApiRunner.java          ← @Suite JUnit Platform
+        │   │   ├── GestionAmenazasApiRunner.java              ← @Suite — amenazas
+        │   │   ├── GestionIncidentesApiRunner.java            ← @Suite — incidentes
+        │   │   └── GestionUsuariosApiRunner.java              ← @Suite — usuarios
         │   ├── stepdefinitions/
-        │   │   └── GestionAmenazasApiStepDefinitions.java ← Glue Cucumber ↔ Screenplay
+        │   │   ├── SharedApiStepDefinitions.java              ← Pasos compartidos (auth, response)
+        │   │   ├── GestionAmenazasApiStepDefinitions.java     ← Steps de amenazas
+        │   │   ├── GestionIncidentesApiStepDefinitions.java   ← Steps de incidentes
+        │   │   └── GestionUsuariosApiStepDefinitions.java     ← Steps de usuarios
         │   ├── tasks/
-        │   │   ├── AuthenticateViaApi.java                ← POST /api/auth/login
-        │   │   ├── CreateThreat.java                      ← POST /api/threats
-        │   │   ├── DeleteThreat.java                      ← DELETE /api/threats/:id
-        │   │   └── ListThreats.java                       ← GET /api/threats
+        │   │   ├── AuthenticateViaApi.java                    ← POST /api/auth/login
+        │   │   ├── CreateThreat.java                          ← POST /api/threats
+        │   │   ├── DeleteThreat.java                          ← DELETE /api/threats/:id
+        │   │   ├── ListThreats.java                           ← GET /api/threats
+        │   │   ├── CreateIncident.java                        ← POST /api/incidents
+        │   │   ├── GetIncidents.java                          ← GET /api/incidents
+        │   │   ├── CreateUser.java                            ← POST /api/users
+        │   │   ├── GetUsers.java                              ← GET /api/users
+        │   │   ├── UpdateUser.java                            ← PUT /api/users/:id
+        │   │   └── ToggleUserStatus.java                      ← PATCH /api/users/:id/toggle-status
         │   └── util/
-        │       └── TestData.java                          ← Constantes de prueba
+        │       └── TestData.java                              ← Constantes y datos de prueba
         └── resources/
             ├── features/
-            │   └── gestion_amenazas_api.feature
+            │   ├── gestion_amenazas_api.feature
+            │   ├── gestion_incidentes_api.feature
+            │   └── gestion_usuarios_api.feature
             ├── serenity.conf
             └── cucumber.properties
 ```
 
 ### Patrón utilizado
 
-**Screenplay + Serenity Rest:** Los actores poseen la habilidad `CallAnApi` y ejecutan Tasks que encapsulan las interacciones HTTP (Post, Get, Delete). Las Questions extraen datos de `LastResponse` para validar resultados.
+**Screenplay + Serenity Rest:** Los actores poseen la habilidad `CallAnApi` y ejecutan Tasks que encapsulan las interacciones HTTP (Post, Get, Delete, Put, Patch). Las Questions extraen datos de `LastResponse` para validar resultados.
 
 | Componente | Clase(s) | Responsabilidad |
 |------------|----------|----------------|
-| `Task` | AuthenticateViaApi, CreateThreat, ListThreats, DeleteThreat | Acción HTTP (SRP por verbo/recurso) |
-| `Question` | ResponseStatusCode, ResponseField, ThreatListContains | Consulta del response HTTP |
+| `Task` | AuthenticateViaApi, CreateThreat, ListThreats, DeleteThreat, CreateIncident, GetIncidents, CreateUser, GetUsers, UpdateUser, ToggleUserStatus | Acción HTTP (SRP por verbo/recurso) |
+| `Question` | ResponseStatusCode, ResponseField, ThreatListContains, ThreatIdByDescription, IncidentInList, UserInList, UserFieldValue | Consulta del response HTTP |
+| `StepDefinition` | SharedApiStepDefinitions (pasos compartidos), + 1 por módulo | Glue Cucumber ↔ Screenplay |
 | `Hook` | ApiHooks | Configura Cast con CallAnApi |
 
 ---
@@ -97,6 +135,17 @@ AUTO_API_SCREENPLAY/
   sudo docker compose up --build
   ```
   Verificar que la API esté disponible en `http://localhost:3000/health`
+
+### Datos de ambiente requeridos
+
+Los escenarios dependen de que ciertos usuarios existan en **Firebase Auth** y en **PostgreSQL**:
+
+| Usuario | Email | Contraseña | Rol (PostgreSQL) | Requerido por |
+|---------|-------|------------|------------------|---------------|
+| Administrador | `admin@cyberguard.com` | `AdminSofka123456` | `admin` | Todos los features |
+| Analista SOC | `soc@cyberguard.com` | `SocSofka123456` | `soc_analyst` | `gestion_usuarios_api.feature` (escenario rol insuficiente) |
+
+> **Nota:** El usuario analista SOC (`soc@cyberguard.com`) debe crearse manualmente en Firebase Console del proyecto CyberGuard y tener asignado el rol `soc_analyst` en PostgreSQL. Sin este usuario, el escenario de **rechazo por rol insuficiente** fallará en el paso de autenticación.
 
 ---
 
@@ -145,8 +194,9 @@ El reporte incluye:
 
 ---
 
-## Flujo del Escenario
+## Flujos de los Escenarios
 
+### Amenazas — CRUD completo
 ```
 POST /api/auth/login        → Obtiene JWT token
     │
@@ -167,4 +217,42 @@ DELETE /api/threats/:id1    → Elimina amenaza #1
     │
     ▼
 DELETE /api/threats/:id2    → Elimina amenaza #2
+```
+
+### Incidentes — Creación y consulta + negativos
+```
+POST /api/auth/login        → Autenticación admin
+    │
+    ▼
+POST /api/threats           → Crea amenaza crítica (prerequisito)
+    │
+    ▼
+POST /api/incidents         → Crea incidente a partir de la amenaza
+    │
+    ▼
+GET  /api/incidents         → Verifica que el incidente aparece en el listado
+    │
+    ▼
+Escenarios negativos: sin token (401), amenaza inexistente (404), severidad insuficiente (422)
+```
+
+### Usuarios — CRUD + toggle status + negativos
+```
+POST /api/auth/login        → Autenticación admin
+    │
+    ▼
+POST /api/users             → Crea usuario (analista SOC)
+    │
+    ▼
+GET  /api/users             → Listado de usuarios
+    │
+    ▼
+PUT  /api/users/:id         → Actualización de rol
+    │
+    ▼
+PATCH /api/users/:id/toggle → Desactivar / reactivar usuario
+    │
+    ▼
+Escenarios negativos: email duplicado (409), sin token (401),
+                       rol insuficiente (403), auto-desactivación (400)
 ```
