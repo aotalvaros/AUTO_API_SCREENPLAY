@@ -18,6 +18,7 @@ public class ResponseField implements Question<String> {
 
     @Override
     public String answeredBy(Actor actor) {
-        return LastResponse.received().answeredBy(actor).body().path(jsonPath).toString();
+        Object result = LastResponse.received().answeredBy(actor).body().path(jsonPath);
+        return result != null ? result.toString() : null;
     }
 }
